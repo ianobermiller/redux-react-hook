@@ -25,11 +25,9 @@ export function useMappedState<TState, TResult>(
   const [mappedState, setMappedState] = useState(() => runMapState());
 
   // If the store or mapState change, rerun mapState
-  const [prevStore, setPrevStore] = useState(store);
-  const [prevMapState, setPrevMapState] = useState(() => mapState);
+  const prevStore = usePrevious(store);
+  const prevMapState = usePrevious(mapState);
   if (prevStore !== store || prevMapState !== mapState) {
-    setPrevStore(store);
-    setPrevMapState(() => mapState);
     setMappedState(runMapState());
   }
 
@@ -39,11 +37,7 @@ export function useMappedState<TState, TResult>(
   // in the array of memoization paramaters to the second useEffect below,
   // which would cause it to unsubscribe and resubscribe from Redux everytime
   // the state changes.
-  const lastRenderedMappedState = useRef();
-  // Set the last mapped state after rendering.
-  useEffect(() => {
-    lastRenderedMappedState.current = mappedState;
-  });
+  const lastRenderedMappedState = usePrevious(mappedState);
 
   useEffect(
     () => {
@@ -51,7 +45,7 @@ export function useMappedState<TState, TResult>(
       // component re-render with the new state.
       const checkForUpdates = () => {
         const newMappedState = runMapState();
-        if (!shallowEqual(newMappedState, lastRenderedMappedState.current)) {
+        if (!shallowEqual(newMappedState, lastRenderedMappedState)) {
           setMappedState(newMappedState);
         }
       };
@@ -76,4 +70,12 @@ export function useDispatch<TAction extends Action>(
 ): Dispatch<TAction> {
   const store = useContext(storeContext);
   return store.dispatch;
+}
+
+function usePrevious<T>(value: T): T {
+  const ref = useRef(value);
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
 }
