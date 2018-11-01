@@ -1,18 +1,17 @@
-
 # See https://help.github.com/ignore-files/ for more about ignoring files.
 
 # dependencies
-node_modules
+/node_modules
 
-# builds
-build
-coverage
-dist
-.rpt2_cache
+# testing
+/coverage
+
+# production
+/build
+/src/redux-react-hook
 
 # misc
 .DS_Store
-.env
 .env.local
 .env.development.local
 .env.test.local

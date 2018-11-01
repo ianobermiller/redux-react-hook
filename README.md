@@ -1,8 +1,26 @@
 # redux-react-hook
 
-> React hook for accessing mapped state from a Redux store. Basically a hooks version of `react-redux`.
+> React hook for accessing mapped state from a Redux store.
 
+[![Build Status](https://travis-ci.com/ianobermiller/redux-react-hook.svg?branch=master)](https://travis-ci.com/ianobermiller/redux-react-hook)
 [![NPM](https://img.shields.io/npm/v/redux-react-hook.svg)](https://www.npmjs.com/package/redux-react-hook)
+[![Bundle Size](https://badgen.net/bundlephobia/minzip/redux-react-hook@latest)](https://bundlephobia.com/result?p=redux-react-hook@latest)
+
+## Table of Contents
+
+- [redux-react-hook](#redux-react-hook)
+  - [Install](#install)
+  - [Usage](#usage)
+    - [Store in Context](#store-in-context)
+    - [`useMappedState(mapState)`](#-usemappedstate-mapstate--)
+    - [`useDispatch()`](#-usedispatch---)
+  - [Example](#example)
+  - [FAQ](#faq)
+  - [More info](#more-info)
+  - [Thanks](#thanks)
+  - [Contributing](#contributing)
+  - [Changelog](#changelog)
+  - [License](#license)
 
 ## Install
 
@@ -16,50 +34,36 @@ npm install --save redux-react-hook
 
 ## Usage
 
-All the hooks take a `storeContext` as the first parameter, which should be a
-context object, the value returned by `React.createContext(...)`, that contains
-your Redux store. See Custom Wrappers below to make this less cumbersome.
+NOTE: React hooks currently require `react` and `react-dom` version `16.7.0-alpha.0` or higher.
+
+In order to use the hooks, your Redux store must be in available in the React context from `StoreProvider`.
 
 ### Store in Context
 
-Before you can use the hook, you must put your Redux store into `Context`:
+Before you can use the hook, you must provide your Redux store via `StoreProvider`:
 
 ```tsx
-// Store.js
-
-import React from 'react';
 import {createStore} from 'redux';
+import {StoreProvider} from 'redux-react-hook';
 import reducer from './reducer';
 
-export function makeStore() {
-  return createStore(reducer);
-}
-
-export const Context = React.createContext(null);
-```
-
-```tsx
-// index.js
-
-import {Context, makeStore} from './Store';
-
-const store = makeStore();
+const store = createStore(reducer);
 
 ReactDOM.render(
-  <Context.Provider value={store}>
+  <StoreProvider value={store}>
     <App />
-  </Context.Provider>,
+  </StoreProvider>,
   document.getElementById('root'),
 );
 ```
 
-### `useMappedState(storeContext, mapState)`
+### `useMappedState(mapState)`
 
 Runs the given `mapState` function against your store state, just like
 `mapStateToProps`.
 
 ```tsx
-const state = useMappedState(storeContext, mapState);
+const state = useMappedState(mapState);
 ```
 
 If your `mapState` function doesn't use props or other component state,
@@ -67,7 +71,6 @@ declare it outside of your stateless functional component:
 
 ```tsx
 import {useMappedState} from 'redux-react-hook';
-import {Context} from './Store';
 
 // Note how mapState is declared outside of the function -- this is critical, as
 // useMappedState will infinitely recurse if you pass in a new mapState
@@ -78,7 +81,7 @@ const mapState = state => ({
 });
 
 export default function TodoSummary() {
-  const {lastUpdated, todoCount} = useMappedState(Context, mapState);
+  const {lastUpdated, todoCount} = useMappedState(mapState);
   return (
     <div>
       <div>Count: {todoCount}</div>
@@ -93,28 +96,26 @@ memoize the function with `useCallback`:
 
 ```tsx
 import {useMappedState} from 'redux-react-hook';
-import {Context} from './Store';
 
 function TodoItem({index}) {
-  // Note that we pass the index as a memoization parameter -- this causes
+  // Note that we pass the index as a dependency parameter -- this causes
   // useCallback to return the same function every time unless index changes.
   const mapState = useCallback(state => state.todos[index], [index]);
-  const todo = useMappedState(storeContext, mapState);
+  const todo = useMappedState(mapState);
 
   return <li>{todo}</li>;
 }
 ```
 
-### `useDispatch(storeContext)`
+### `useDispatch()`
 
 Simply returns the dispatch method.
 
 ```tsx
 import {useMappedState} from 'redux-react-hook';
-import {Context} from './Store';
 
 function DeleteButton({index}) {
-  const dispatch = useDispatch(Context);
+  const dispatch = useDispatch();
   const deleteTodo = useCallback(() => dispatch({type: 'delete todo', index}), [
     index,
   ]);
@@ -123,52 +124,18 @@ function DeleteButton({index}) {
 }
 ```
 
-### Custom wrappers
-
-To avoid having to pass in a `storeContext` with every call, we recommend adding
-project specific wrappers for `useMappedState` and `useDispatch`:
-
-```tsx
-// Store.js
-
-import React from 'react';
-import {
-  useDispatch as useDispatchGeneric,
-  useMappedState as useMappedStateGeneric,
-} from 'redux-react-hook';
-
-export const Context = React.createContext(null);
-
-export function useMappedState(mapState) {
-  return useMappedStateGeneric(Context, mapState);
-}
-
-export function useDispatch() {
-  return useDispatchGeneric(Context);
-}
-```
-
-The `useMappedState` wrapper is also an ideal place to restrict the store state
-that you want passed to `mapState`. For example, if your store schema has an
-undo stack, and you only want to pass the current state.
-
-```tsx
-export function useMappedState(mapState) {
-  const mapRestrictedState = useCallback(
-    fullState => mapState(fullState.currentState),
-    [mapState],
-  );
-  return useMappedStateGeneric(Context, mapRestrictedState);
-}
-```
-
-See the example project for the full code.
-
 ## Example
 
-To run the example project, a simple todo app:
+You can try out `redux-react-hook` right in your browser with the [Codesandbox example](https://codesandbox.io/s/github/ianobermiller/redux-react-hook-example).
+
+To run the example project locally:
 
 ```bash
+# In one terminal, run `yarn start` in the root to rebuild the library itself
+cd ./redux-react-example
+yarn start
+
+# In another terminal, run `yarn start` in the `example` folder
 cd example
 yarn start
 ```
@@ -181,11 +148,27 @@ You're not memoizing the `mapState` function. Either declare it outside of your
 stateless functional component or wrap it in `useCallback` to avoid creating a
 new function every render.
 
+## More info
+
+Hooks are really new, and we are just beginning to see what people do with them. There is an [open issue on `react-redux`](https://github.com/reduxjs/react-redux/issues/1063) discussing the potential. Here are some other projects that are adding hooks for Redux:
+
+- [`use-substate`](https://github.com/philipp-spiess/use-substate)
+- [`react-use-redux`](https://github.com/martynaskadisa/react-use-redux)
+
+## Thanks
+
+Special thanks to @sawyerhood and @sophiebits for writing most of the hook! This repo was setup with the help of the excellent [`create-react-library`](https://www.npmjs.com/package/create-react-library).
+
 ## Contributing
 
 Contributions are definitely welcome! Check out the [issues](https://github.com/ianobermiller/redux-react-hook/issues)
 for ideas on where you can contribute.
 
+## Changelog
+
+- v2.0.0 - Export `StoreProvider` instead of requiring you to pass in context
+- v1.0.0 - Initial release
+
 ## License
 
-MIT © [ianobermiller](https://github.com/ianobermiller)
+MIT © Facebook Inc.
